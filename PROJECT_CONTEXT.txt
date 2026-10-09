@@ -1,0 +1,85 @@
+POCKET ACCOUNTABILITY MAP — PROJECT CONTEXT
+===========================================
+
+BRIEF
+Hackathon prompt: an innovative visualisation for an NFL coach / scout /
+broadcaster. Preferably a new metric, position-specific.
+
+DATA  (data/ in this repo; same files as
+       C:\Users\spenc\projects\NFL Datathon\nfl-big-data-bowl-regional-event-data\data\)
+- NFL Big Data Bowl 2023 set: 2021 season, weeks 1-8, dropback pass plays only.
+- games.csv, plays.csv, players.csv, pffScoutingData.csv, tracking/ (122 files,
+  one per game, 10 Hz).
+- Join keys: gameId, playId, nflId. gameId/playId join to nflverse old_game_id/play_id.
+- Tracking mostly ends at pass_forward / qb_sack -> pocket-phase ideas only
+  (no ball-in-air / YAC analysis).
+- PFF data gives roles (Pass, Pass Block, Pass Rush, Pass Route, Coverage),
+  block type, the rusher each blocker blocked (pff_nflIdBlockedPlayer), and
+  sacks/hits/hurries allowed per blocker.
+- Already-used ideas to avoid: STRAIN (rusher closing rate, 2023 finalist),
+  convex-hull pocket area, plain pass-rush win rate.
+
+IDEAS BRAINSTORMED
+OL:    1 Pocket Blame Map (chosen)  2 Anchor Score  3 Line Chemistry Matrix
+Edge:  4 Bend Index  5 Gravity / Teammate Pressure Lift
+QB:    6 Pocket Feel Score  7 Clock Left on the Table
+Other: 8 Chip Value (RB/TE)  9 Disguise Score (safeties/corners)
+
+CHOSEN: POCKET ACCOUNTABILITY MAP (originally "Pocket Blame Map")
+Name: it assigns responsibility for lost pocket space to a specific blocker,
+frame by frame. Renamed to sound less negative to coaches.
+Metric: Square Yards Surrendered (SYS).
+Method:
+ 1. Every 0.1s, sample a 5-yard-radius disk around the QB on a 0.25-yd grid.
+ 2. A grid point is lost when a pass rusher is closer to it than the QB.
+    It belongs to the nearest rusher.
+ 3. Subtract each rusher's area at the snap (alignment isn't charged); clip at 0.
+ 4. Charge that area to the rusher's blocker (from PFF); split it when he is
+    double-teamed. Unblocked rushers go to "UNBLOCKED".
+ 5. Headline number: SYS at 2.5s (plays lasting at least 2.5s). Also recorded:
+    at the end of the play, the peak, and the average over the play.
+
+WHAT EXISTS  (in C:\Users\spenc\projects\NFL Datathon\pocket_blame\, not yet in this repo)
+- compute.py: pipeline over all 122 games, ~1 min with 7 processes.
+  Run:  python pocket_blame/compute.py [n_games]
+- out/blocker_plays.csv: ~48.6k rows, one per blocker per play.
+  33.6k rows have sys25. 2.7k are UNBLOCKED. Mean sys25 = 4.0 yd², median 0.9.
+  Not yet checked against PFF outcomes.
+- pocket_blame_map.html: mockup with one made-up play (the RE beats the RT and
+  gets the sack). Animated replay, slider, hover tooltips, side panel (pocket
+  remaining, surrendered bars), sample leaderboard (made-up names), method section.
+  Published (private): https://claude.ai/artifact/9yFd9k546GH7sJZtxPgjsB
+  The made-up play at the sack: RT 31.1 yd², LG 7.4, others about 1.
+  Pocket shrinks 63 -> 21 yd².
+
+PLAN: THREE WORKSTREAMS, ALL RUNNING AT THE SAME TIME
+A) Metric & pipeline: rename the folder to pocket_accountability/; fix edge
+   cases (missing frames, scrambles, helper blockers); add positions; check
+   radius sensitivity (4/5/6 yd; keep 5 unless Spearman rho < 0.85); export
+   leaderboard.json (min ~150 snaps) and replays.json (normalised so offense
+   moves up the screen, LOS at y=0). Ship a stub replays.json with one play first.
+B) Validation & insights: does SYS track PFF sacks/hits/hurries allowed (AUC)?
+   Is it stable odd vs even weeks, compared with pressure rate? Find "hidden
+   leaky" / "unfairly blamed" linemen; context splits (dropBackType, play action,
+   rusher count); pick 4-6 showcase plays (obvious-culprit sack, surprise-culprit
+   sack, clean pocket, stunt/SW). Starts on the v1 CSV now.
+C) Visualisation & pitch: rename the page; load real replays from JSON with a
+   play picker; real leaderboard with search and per-player panel; a "Does it
+   work?" section; coach/scout/broadcaster angles; slides plus a 2-minute demo.
+Handoffs, each with a stand-in until it arrives:
+  A->C data format/JSON (stub file), B->A showcase plays (any sack play),
+  B->C headline numbers (placeholders).
+Critical path: A's leaderboard.json. Fallback: build it from the v1 CSV.
+
+VERIFICATION
+- Pipeline: run on 2 games, then full run. On a known PFF sack-allowed play the
+  charged blocker should have the highest SYS on that play.
+- Validation: SYS clearly higher on pressure-allowed plays; report odd/even-week
+  correlation whatever the result.
+- Page: node --check on the extracted script; slider, bars and tooltip agree on
+  each showcase play; check light/dark/phone width; republish.
+
+ENVIRONMENT
+Windows 11, Python 3.14 (pandas + numpy installed), Node 24.
+Repo: https://github.com/oconnesp/nfl-big-data-bowl-datathon (cloned to
+C:\Users\spenc\nfl-big-data-bowl-datathon)
