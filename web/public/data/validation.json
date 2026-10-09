@@ -1,0 +1,12 @@
+{
+  "stub": true,
+  "headlines": [
+    { "label": "Dropback plays measured", "value": "8,532", "note": "2021 weeks 1–8, from Workstream A's pipeline (25 plays dropped: 24 with no snap event, 1 with no rushers)." },
+    { "label": "AUC: SYS vs PFF pressure allowed", "value": "TBD", "note": "Play by play: does SYS run higher on snaps where PFF charged the lineman with a sack, hit or hurry?" },
+    { "label": "Split-half stability (odd vs even weeks)", "value": "TBD", "note": "Correlation of each lineman's SYS across the two halves, against the same check on PFF pressure rate." }
+  ],
+  "charts": [
+    { "id": "by-outcome", "title": "Mean SYS@2.5 by PFF outcome", "type": "bar", "xLabel": "PFF outcome charged to the lineman", "yLabel": "Mean SYS@2.5 (yd²)", "xTicks": ["Clean", "Hurry", "Hit", "Sack"], "series": [{ "name": "SYS@2.5", "points": [] }], "caption": "Workstream B results go here." },
+    { "id": "stability", "title": "Split-half stability", "type": "scatter", "xLabel": "SYS@2.5, odd weeks", "yLabel": "SYS@2.5, even weeks", "series": [{ "name": "Linemen", "points": [] }], "caption": "Workstream B results go here." }
+  ]
+}
