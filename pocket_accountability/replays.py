@@ -54,7 +54,10 @@ def export_replay(gid, pid, radius=R, meta=None):
     s, e = res['s'], res['e']
     w = df[(df.frameId >= s) & (df.frameId <= e)]
     left = w.playDirection.iloc[0] == 'left'
-    ball = w[(w.team == 'football') & (w.frameId == s)][['x', 'y']].to_numpy()[0]
+    # Line of scrimmage = ball where it sits pre-snap (first tracked frame). At the
+    # snap frame itself the ball is often already travelling back to the QB.
+    bf = df[df.team == 'football']
+    ball = bf[bf.frameId == bf.frameId.min()][['x', 'y']].to_numpy()[0]
 
     def norm(xy):
         xy = np.asarray(xy, float)

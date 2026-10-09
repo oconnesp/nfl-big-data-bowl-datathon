@@ -9,13 +9,52 @@ Full method and integrity rules: docstring of `compute.py`.
 
 ```
 pip install -r pocket_accountability/requirements.txt
-python pocket_accountability/compute.py --games 2   # quick check
-python pocket_accountability/compute.py             # all 122 games (~1 min)
-python pocket_accountability/replays.py --stub      # one sack play -> out/replays.json
+cd pocket_accountability
+python run_all.py            # everything: compute -> checks -> leaderboard -> replays -> checks (~1.5 min)
+python run_all.py --games 2  # quick smoke run
 ```
 
-Options for `compute.py`: `--games N`, `--workers N` (default 7), `--radius YD` (default 5),
-`--out PATH`.
+Individual steps:
+
+```
+python compute.py [--games N] [--workers 7] [--radius 5] [--out PATH]   # out/blocker_plays.csv, drop_report.json
+python checks.py                                                         # out/checks_report.txt (exit 1 on hard fail)
+python leaderboard.py                                                    # out/leaderboard.json
+python replays.py [--plays gid:pid,...] [--stub]                         # out/replays.json (default: showcase.py picks)
+python showcase.py                                                       # print showcase picks and why
+python sensitivity.py                                                    # needs out/sens/bp_r4.csv, bp_r6.csv (see below)
+```
+
+## Results (full run, R = 5 yd)
+
+- Plays: 8,557 seen, 8,532 kept. Dropped: 24 no snap event, 1 no rushers, 0 missing frames.
+- Rows: 48,638 blocker-plays; 3.9% helper rows, 2,712 UNBLOCKED rows.
+- Hard checks (`checks_report.txt`): all pass — no negative SYS, no play's total exceeds the disk,
+  replay last frames match the CSV.
+- Attribution vs PFF (is the PFF-charged blocker the top-SYS blocker on the play?):
+
+  | PFF flag | sys25 | sys_peak | chance | AUC (sys_peak) |
+  |---|---|---|---|---|
+  | sack allowed | 48.2% | 51.3% | 19.7% | 0.836 |
+  | hit allowed | 41.3% | 46.6% | 19.8% | 0.734 |
+  | hurry allowed | 44.8% | 42.8% | 21.5% | 0.740 |
+
+  Around 2.5x chance, but **sack attribution is only about 50%**, so SYS disagrees with PFF on
+  half of sacks. Some of those are real disagreements (e.g. the `sack_hidden_culprit` replay:
+  PFF charged the RG, SYS charges the LT, who was flagged for holding on the play). Some come
+  from the method: once bodies overlap at contact, the pocket split degenerates and the charged
+  blocker's SYS can fall to 0 on the final frame. **`sys_end` is unreliable on sacks — use
+  `sys25` (headline) or `sys_peak`.**
+- Radius sensitivity (`sensitivity.json`, 92 qualified linemen): Spearman ρ of per-player mean
+  sys25 is 0.990 (R4 vs R5) and 0.992 (R6 vs R5). Per position it's ≥ 0.92, and 80–100% of the
+  top/bottom-10 lists stay the same. **R = 5 is kept.** To reproduce:
+  `python compute.py --radius 4 --out out/sens/bp_r4.csv` (same for 6), then
+  `python sensitivity.py`. `out/sens/` is gitignored.
+- Leaderboard: min 150 snaps (92 linemen qualify: T 35, G 36, C 21). Position averages of
+  sys25: T 7.37, G 1.84, C 1.10 yd². Tackles face edge rushers in open space, so **compare only
+  within a position**. Percentiles and tiers are computed within the slot the player actually
+  lined up at (PFF), not his roster label: e.g. Olisaemeka Udoh is listed as a T but played RG
+  on every snap, so he's ranked with the guards.
 
 ## Outputs (`pocket_accountability/out/`)
 
@@ -65,3 +104,36 @@ screen-y = up (viewed from behind the QB; LT is negative, RT positive).
 }]
 ```
 All IDs are strings in object keys. `sys` on the last frame equals `sys_end` in the CSV.
+
+
+### leaderboard.json — offensive line, ranked within position
+
+```jsonc
+{
+  "generated_at": "ISO time", "radius": 5.0, "metric": "sys25",
+  "min_snaps": 150, "min_snaps_reason": "...", "percentile_note": "100 = best (lowest sys25)",
+  "position_averages": {"T": 7.374, "G": 1.84, "C": 1.101},
+  "players": [{
+    "nflId": 42445, "name": "Daryl Williams", "team": "BUF",
+    "position": "T",                 // slot he lined up at most (LT/RT->T, LG/RG->G, C)
+    "official_position": "T", "lined_up": {"RT": 181},
+    "snaps": 181,                    // qualified pass-pro snaps lasting >= 2.5 s
+    "sys25_mean": 5.383, "sys_peak_mean": 0.0, "sys_end_mean": 0.0,
+    "pos_avg": 7.374, "vs_avg": -1.99,
+    "percentile": 100.0, "tier": "Wall|Average|Leaky",   // terciles within position
+    "weekly": {"1": 4.2},            // week -> mean sys25
+    "pressures_allowed": 12, "pressure_rate": 0.066,    // PFF sack+hit+hurry allowed
+    "worst_rep": {"gameId": 0, "playId": 0, "sys25": 22.0}   // feed to replays.py --plays
+  }]
+}
+```
+
+### Showcase replays (default `replays.py` picks, from `showcase.py`)
+
+| tag | play | why |
+|---|---|---|
+| sack_culprit_confirmed | 2021101007:2849 | Brady sack; PFF-charged TE O.J. Howard peak 33.2 yd² vs next 2.1 |
+| sack_hidden_culprit | 2021091201:4103 | Allen sack by T.J. Watt; PFF charged RG Ford (1.4), SYS says LT Dawkins (30.8), who was flagged for holding |
+| clean_pocket | 2021091204:1641 | Goff, 4.7 s, 0 yd² surrendered at 2.5 s |
+| stunt | 2021091300:4765 | Lamar Jackson sack/fumble; switch block (SW) by RT Villanueva |
+| unblocked | 2021101703:2962 | Rodgers sack; UNBLOCKED rusher took 50.4 yd² |

@@ -3,7 +3,7 @@ rows=48638  plays=8532  helper=3.9%  unblocked rows=2712
 [PASS] negative SYS values: 0
 [PASS] plays with total sys25 > disk 78.5: 0 (max total 60.2)
 [PASS] plays with total sys_end > disk 78.5: 0 (max total 71.1)
-[PASS] replays.json (1 plays) last-frame SYS vs CSV mismatches: 0
+[PASS] replays.json (5 plays) last-frame SYS vs CSV mismatches: 0
 [INFO] of blocker rows with peak SYS > 0.5, 40.3% end > 0.5 yd² below their peak
 
 ATTRIBUTION: is the PFF-flagged blocker the top-SYS blocker on the play?
