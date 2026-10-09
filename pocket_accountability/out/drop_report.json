@@ -1,0 +1,17 @@
+{
+  "radius": 5.0,
+  "games": 122,
+  "plays_seen": 8557,
+  "plays_kept": 8532,
+  "dropped": {
+    "no_pff": 0,
+    "no_qb": 0,
+    "no_rushers": 1,
+    "no_snap": 24,
+    "too_short": 0,
+    "missing_frames": 0
+  },
+  "rows": 48638,
+  "helper_rows": 1881,
+  "unblocked_rows": 2712
+}
