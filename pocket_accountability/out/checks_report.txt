@@ -1,0 +1,49 @@
+rows=48638  plays=8532  helper=3.9%  unblocked rows=2712
+{   "radius": 5.0,   "games": 122,   "plays_seen": 8557,   "plays_kept": 8532,   "dropped": {     "no_pff": 0,     "no_qb": 0,     "no_rushers": 1,     "no_snap": 24,     "too_short": 0,     "missing_frames": 0   },   "rows": 48638,   "helper_rows": 1881,   "unblocked_rows": 2712 }
+[PASS] negative SYS values: 0
+[PASS] plays with total sys25 > disk 78.5: 0 (max total 60.2)
+[PASS] plays with total sys_end > disk 78.5: 0 (max total 71.1)
+[PASS] replays.json (1 plays) last-frame SYS vs CSV mismatches: 0
+[INFO] of blocker rows with peak SYS > 0.5, 40.3% end > 0.5 yd² below their peak
+
+ATTRIBUTION: is the PFF-flagged blocker the top-SYS blocker on the play?
+flag    metric      plays  top-SYS  chance    AUC
+sack    sys25         340    48.2%   19.7%  0.733
+sack    sys_peak      345    51.3%   19.7%  0.836
+sack    sys_end       345    49.3%   19.7%  0.748
+hit     sys25         416    41.3%   19.8%  0.713
+hit     sys_peak      509    46.6%   19.7%  0.734
+hit     sys_end       509    44.8%   19.7%  0.733
+hurry   sys25        1577    44.8%   21.7%  0.701
+hurry   sys_peak     1801    42.8%   21.5%  0.740
+hurry   sys_end      1801    37.4%   21.5%  0.627
+beaten  sys25        1049    38.6%   21.1%  0.652
+beaten  sys_peak     1694    39.5%   21.5%  0.649
+beaten  sys_end      1694    40.0%   21.5%  0.665
+[WARN] sack attribution below 50% for: sys25 48%, sys_end 49%
+
+EXAMPLE SACK PLAYS (hand check):
+-- 2021103104:342
+   Matt Nelson (RT)                 sys25=  9.31 peak= 27.62 end= 26.06 <-- PFF sack
+   Penei Sewell (LT)                sys25= 11.31 peak= 11.81 end=  0.00
+   Jonah Jackson (LG)               sys25=  0.00 peak=  8.03 end=  8.03
+   Evan Brown (C)                   sys25=  0.00 peak=  8.03 end=  8.03
+   Halapoulivaati Vaitai (RG)       sys25=  1.06 peak=  2.44 end=  0.00
+-- 2021103112:3325
+   Tony Pollard (HB-L)              sys25= 21.81 peak= 23.25 end= 23.25 <-- PFF sack
+   UNBLOCKED                        sys25=  4.44 peak=  6.38 end=  6.38
+   Ty Nsekhe (LT)                   sys25=  3.31 peak=  5.19 end=  5.19
+   Terence Steele (RT)              sys25=  0.00 peak=  3.94 end=  0.00
+   Zack Martin (RG)                 sys25=  0.00 peak=  0.00 end=  0.00 [helper]
+   Connor Williams (LG)             sys25=  0.00 peak=  0.00 end=  0.00 [helper]
+   Tyler Biadasz (C)                sys25=  0.00 peak=  0.00 end=  0.00 [helper]
+-- 2021102500:3424
+   UNBLOCKED                        sys25=  7.81 peak= 27.31 end= 22.94
+   Duane Brown (LT)                 sys25= 13.06 peak= 13.44 end= 10.56
+   Brandon Shell (RT)               sys25=  6.00 peak= 12.88 end=  6.06
+   Jamarco Jones (LG)               sys25=  2.25 peak= 10.44 end= 10.44
+   Gabe Jackson (RG)                sys25=  0.00 peak=  9.19 end=  7.12
+   Kyle Fuller (C)                  sys25=  0.00 peak=  0.16 end=  0.00 <-- PFF sack
+   Travis Homer (HB-L)              sys25=  0.00 peak=  0.16 end=  0.00
+
+RESULT: ALL HARD CHECKS PASS
