@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pocket Accountability Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  --bg: #f3f4f6; --panel: #fcfcfb; --fg: #12151a; --fg-2: #4d5462; --muted: #6b7280; --line: #e0e2e7;
+  --accent: #2a5bd7; --chip: #e7eaf0;
+  --b-lt: #2a78d6; --b-lg: #eb6834; --b-c: #1baf7a; --b-rg: #c98500; --b-rt: #d55181; --b-te: #8e6bd8; --b-rb: #4fa3ad;
+  --bad: #c62f2f; --good: #006300;
+  --f-display: "Saira Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #0e1014; --panel: #171a20; --fg: #f2f3f5; --fg-2: #b9bec8; --muted: #9aa0ab; --line: #2a2e36;
+    --accent: #6f9bff; --chip: #23272f; --b-lt: #3987e5; --b-lg: #d95926; --b-c: #199e70; --bad: #e66767; --good: #3cc03c; color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 28px 20px 56px; display: grid; gap: 28px; }
+header { display: grid; gap: 6px; }
+.eyebrow { font-family: var(--f-display); text-transform: uppercase; letter-spacing: .14em; font-size: 12px; font-weight: 600; color: var(--accent); }
+h1 { font-family: var(--f-display); font-weight: 700; font-size: clamp(30px, 5vw, 46px); line-height: 1.02; margin: 0; }
+.lede { color: var(--fg-2); max-width: 72ch; margin: 0; }
+.tag { font-size: 12px; color: var(--fg-2); background: var(--chip); border-radius: 999px; padding: 2px 10px; width: fit-content; }
+h2 { font-family: var(--f-display); font-weight: 600; font-size: 22px; margin: 0; }
+h3 { font-family: var(--f-display); text-transform: uppercase; letter-spacing: .1em; font-size: 12px; font-weight: 600; color: var(--muted); margin: 0; }
+.picker { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.picker label { font: 600 12px var(--f-display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+select, input[type=search] { font: 14px var(--f-body); color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; }
+select { max-width: 100%; }
+.story { margin: 0; padding: 12px 16px; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 8px; color: var(--fg-2); }
+.story b { color: var(--fg); }
+.stage { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; align-items: start; }
+@media (max-width: 900px) { .stage { grid-template-columns: minmax(0, 1fr); } }
+.fieldbox { background: #11151b; border-radius: 10px; overflow: hidden; position: relative; }
+.playhead { display: grid; gap: 2px; padding: 12px 16px 0; color: #e9ecf1; }
+.playhead .row { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.playhead .sit { font-family: var(--f-display); font-weight: 600; letter-spacing: .04em; font-size: 15px; }
+.playhead .res, .playhead .desc { font-family: var(--f-mono); font-size: 12px; color: #aab1bd; }
+canvas#field { display: block; width: 100%; aspect-ratio: 24 / 14; cursor: crosshair; touch-action: none; }
+.controls { display: flex; align-items: center; gap: 12px; padding: 10px 16px 14px; color: #e9ecf1; }
+.btn { font: 600 13px var(--f-display); letter-spacing: .06em; text-transform: uppercase; background: #e9ecf1; color: #11151b; border: 0; border-radius: 6px; padding: 7px 14px; cursor: pointer; min-width: 74px; }
+.btn:focus-visible, input:focus-visible, select:focus-visible, .chip:focus-visible, .watch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.scrub { flex: 1; display: grid; gap: 4px; min-width: 0; }
+.scrub input { width: 100%; accent-color: #e9ecf1; }
+.ticks { position: relative; height: 16px; font: 11px var(--f-mono); color: #aab1bd; }
+.ticks span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.clock { font: 500 14px var(--f-mono); font-variant-numeric: tabular-nums; min-width: 48px; text-align: right; }
+#tip { position: absolute; pointer-events: none; background: rgba(10,12,16,.94); color: #f2f3f5; font-size: 12px; line-height: 1.35; padding: 6px 9px; border-radius: 6px; border: 1px solid rgba(255,255,255,.12); white-space: nowrap; }
+.rail { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: grid; gap: 20px; }
+.hero .num { font-family: var(--f-display); font-weight: 700; font-size: 44px; line-height: 1; }
+.hero .num small { font-size: 18px; color: var(--muted); font-weight: 500; }
+.hero .sub { color: var(--fg-2); font-size: 13px; }
+.bars { display: grid; gap: 9px; }
+.bar { display: grid; grid-template-columns: 112px minmax(0,1fr) 42px; align-items: center; gap: 8px; font-size: 13px; }
+.bar .who { display: flex; align-items: center; gap: 6px; font-weight: 600; min-width: 0; }
+.bar .who span.nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar .sw { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.bar .track { height: 12px; background: var(--chip); border-radius: 0 4px 4px 0; position: relative; }
+.bar .fill { position: absolute; inset: 0 auto 0 0; border-radius: 0 4px 4px 0; }
+.bar .val { font-family: var(--f-mono); font-variant-numeric: tabular-nums; text-align: right; }
+.bar.lead .who { color: var(--bad); }
+.pff { font: 600 10px var(--f-display); letter-spacing: .06em; text-transform: uppercase; color: var(--bad); border: 1px solid currentColor; border-radius: 4px; padding: 0 4px; flex: none; }
+.note { font-size: 12px; color: var(--muted); margin: 0; }
+svg text { font-family: var(--f-mono); }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--fg-2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: grid; gap: 14px; }
+.season-head { display: flex; justify-content: space-between; align-items: end; gap: 12px; flex-wrap: wrap; }
+.tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.chips { display: flex; gap: 6px; }
+.chip { font: 500 13px var(--f-body); background: var(--chip); color: var(--fg); border: 1px solid transparent; border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--fg); color: var(--panel); }
+.tablewrap { overflow-x: auto; max-height: 560px; overflow-y: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 760px; }
+th { position: sticky; top: 0; background: var(--panel); text-align: left; font: 600 11px var(--f-display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); padding: 6px 10px; border-bottom: 1px solid var(--line); }
+td { padding: 8px 10px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+td.n, th.n { text-align: right; } td.n { font-family: var(--f-mono); }
+td .tm { color: var(--muted); font-size: 12px; margin-left: 6px; }
+.dist { width: 160px; }
+.distbar { height: 8px; background: var(--chip); border-radius: 4px; position: relative; }
+.distbar i { position: absolute; top: -3px; width: 3px; height: 14px; border-radius: 2px; background: var(--fg); }
+.distbar b { position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: var(--muted); }
+.grade { font: 600 11px var(--f-display); letter-spacing: .06em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; }
+.grade.g { color: var(--good); background: color-mix(in srgb, var(--good) 14%, transparent); }
+.grade.b { color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, transparent); }
+.grade.m { color: var(--fg-2); background: var(--chip); }
+.watch { font: 600 11px var(--f-display); letter-spacing: .06em; text-transform: uppercase; background: none; color: var(--accent); border: 1px solid currentColor; border-radius: 6px; padding: 2px 8px; cursor: pointer; }
+.grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 760px) { .grid3, .grid4 { grid-template-columns: minmax(0, 1fr); } }
+.stat .v { font-family: var(--f-display); font-weight: 700; font-size: 34px; line-height: 1.05; }
+.stat p, .step p { margin: 0; color: var(--fg-2); font-size: 14px; }
+.step { display: grid; gap: 6px; align-content: start; }
+.step .k { font-family: var(--f-display); font-weight: 700; font-size: 13px; color: var(--accent); letter-spacing: .08em; text-transform: uppercase; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Offensive line · pass protection · NFL 2021 weeks 1–8</div>
+    <h1>Pocket Accountability Map</h1>
+    <p class="lede">Each frame, the QB's pocket is the space he can reach before any rusher. When a rusher takes some of it, the blocker assigned to that rusher is charged. The result is <strong>Square Yards Surrendered (SYS)</strong>: a protection stat for each lineman, measured in field space instead of sacks and pressures.</p>
+    <span class="tag" id="dataTag"></span>
+  </header>
+
+  <div class="picker">
+    <label for="playSel">Play</label>
+    <select id="playSel"></select>
+  </div>
+  <p class="story" id="story"></p>
+
+  <section class="stage">
+    <div class="fieldbox">
+      <div class="playhead">
+        <div class="row"><span class="sit" id="sit"></span><span class="res" id="res"></span></div>
+        <div class="desc" id="desc"></div>
+      </div>
+      <canvas id="field" aria-label="Top-down view of the pocket. Space lost to each rusher is shaded in the colour of the blocker responsible."></canvas>
+      <div id="tip" hidden></div>
+      <div class="controls">
+        <button class="btn" id="play" type="button">Play</button>
+        <div class="scrub">
+          <input id="t" type="range" min="0" max="10" step="1" value="0" aria-label="Time after snap">
+          <div class="ticks" id="ticks"></div>
+        </div>
+        <span class="clock" id="clock">0.0s</span>
+      </div>
+    </div>
+    <aside class="rail">
+      <div class="hero">
+        <h3>Pocket remaining</h3>
+        <div class="num" id="pocket">—</div>
+        <div class="sub" id="pocketSub"></div>
+      </div>
+      <svg id="spark" viewBox="0 0 284 70" width="100%" role="img" aria-label="Pocket area over time"></svg>
+      <div style="display:grid;gap:10px">
+        <h3>Square yards surrendered</h3>
+        <div class="bars" id="bars"></div>
+        <p class="note">Measured from where each rusher lined up, so alignment isn't charged. <span class="pff">PFF</span> = PFF charged this blocker with a sack, hit, hurry or "beaten" on the play.</p>
+      </div>
+    </aside>
+  </section>
+
+  <div class="legend" aria-label="Map legend">
+    <span><i style="background:rgba(233,236,241,.35);outline:1px solid rgba(120,120,120,.6)"></i>Clean pocket (QB gets there first)</span>
+    <span><i style="background:var(--b-rt)"></i>Lost space, in the colour of the blocker charged</span>
+    <span><i style="background:repeating-linear-gradient(45deg,#e66767 0 3px,transparent 3px 6px);outline:1px solid #e66767"></i>Lost to an unblocked rusher</span>
+    <span><i style="background:#11151b;border:2px solid #e66767"></i>Pass rusher</span>
+  </div>
+
+  <section class="card">
+    <div class="season-head">
+      <div style="display:grid;gap:4px">
+        <h2>Season leaderboard · SYS at 2.5s</h2>
+        <p class="note" id="lbNote"></p>
+      </div>
+      <div class="tools">
+        <input type="search" id="q" placeholder="Search player or team" aria-label="Search player or team">
+        <div class="chips" role="group" aria-label="Filter by position">
+          <button class="chip" type="button" data-pos="T" aria-pressed="true">Tackles</button>
+          <button class="chip" type="button" data-pos="G" aria-pressed="false">Guards</button>
+          <button class="chip" type="button" data-pos="C" aria-pressed="false">Centers</button>
+        </div>
+      </div>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>Player</th><th>Slot</th><th class="n">Snaps</th><th class="n">SYS@2.5</th><th class="dist">vs. position avg</th><th class="n">PFF press. / snap</th><th>Tier</th><th>Worst rep</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Does it work?</h2>
+    <div class="grid4" id="stats"></div>
+    <p class="note">"Top-SYS blocker" = on plays where PFF charged a blocker, how often he is also the blocker who surrendered the most pocket space (peak SYS), vs. picking a blocker at random. AUC: chance a PFF-flagged blocker-play has higher SYS than an unflagged one. SYS and PFF disagree on about half of sacks, and some of those look like SYS is right. See the hidden-culprit play.</p>
+  </section>
+
+  <section class="card">
+    <h2>Who it's for</h2>
+    <div class="grid3">
+      <div class="step"><span class="k">Coach</span><p>Not just "whose sack was it?". Which lineman leaks space on every rep, and the exact snap to pull up on film (Worst rep).</p></div>
+      <div class="step"><span class="k">Scout</span><p>A lineman's percentile against his own slot, built from every pass-pro rep rather than the handful that end in pressure, and stable whether the pocket is 4, 5 or 6 yards (ρ 0.99).</p></div>
+      <div class="step"><span class="k">Broadcaster</span><p>A live overlay that shows the pocket shrinking and lights up the guilty blocker before the sack happens.</p></div>
+    </div>
+  </section>
+
+  <section class="grid3">
+    <div class="step"><span class="k">1 · Draw the pocket</span><p>Sample a 5-yard disk around the QB every 0.1s. A point belongs to the QB if he is closer to it than every pass rusher.</p></div>
+    <div class="step"><span class="k">2 · Find who took it</span><p>Points a rusher is closer to are lost to him. Subtract what he owned at the snap, so only ground gained after the snap counts.</p></div>
+    <div class="step"><span class="k">3 · Charge the blocker</span><p>PFF's block assignments link each rusher to his blocker. Doubles split the charge. Free rushers go to "Unblocked", which points at the scheme or a missed call.</p></div>
+  </section>
+</div>
+
+<script>
+const DATA = /*__DATA__*/null;
+(() => {
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const { replays, leaderboard: LB, stats: ST } = DATA;
+  const R = replays[0].meta.radius, RES = 0.25, CELL = RES * RES;
+  const GRID = [];
+  for (let x = -R; x <= R + 1e-9; x += RES) for (let y = -R; y <= R + 1e-9; y += RES) if (x*x + y*y <= R*R) GRID.push([x, y]);
+  const TAGS = {
+    sack_culprit_confirmed: 'Sack · PFF and SYS agree', sack_hidden_culprit: 'Sack · hidden culprit',
+    clean_pocket: 'Clean pocket', stunt: 'Stunt / switch block', unblocked: 'Unblocked rusher',
+  };
+  const STORY = {
+    sack_culprit_confirmed: 'One blocker loses, and the map shows it long before the sack.',
+    sack_hidden_culprit: 'A sack chart blames one man. The space was lost somewhere else. Watch the left edge (and note the holding call in the play description).',
+    clean_pocket: 'What winning looks like: the pocket barely shrinks, and nobody is charged.',
+    stunt: 'Rushers cross and blockers pass them off. A missed hand-off shows up as space charged to whoever owned the looper.',
+    unblocked: 'Nobody was assigned to the rusher who got home. That one goes on the protection call, not a lineman.',
+    worst_rep: 'This lineman\'s single worst rep of the season (highest SYS at 2.5s).',
+  };
+  const RESULT = { S: 'Sack', C: 'Complete', I: 'Incomplete', IN: 'Interception', R: 'Scramble' };
+  const slotVar = s => ({ LT: '--b-lt', LG: '--b-lg', C: '--b-c', RG: '--b-rg', RT: '--b-rt' })[s] || (s && s.startsWith('TE') ? '--b-te' : '--b-rb');
+  const short = s => !s ? '?' : ['LT','LG','C','RG','RT'].includes(s) ? s : s.startsWith('TE') ? 'TE' : s.startsWith('HB') ? 'RB' : s.startsWith('FB') ? 'FB' : s.slice(0, 3);
+  const hexA = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`; };
+  const lastName = n => n ? n.split(' ').slice(1).join(' ') || n : '?';
+
+  let P = null, cur = 0;   // current prepared play
+  function prepare(rep) {
+    const pl = Object.fromEntries(rep.players.map(p => [String(p.nflId), p]));
+    const qb = rep.players.find(p => p.side === 'QB').nflId + '';
+    const rushers = rep.players.filter(p => p.side === 'RUSH').map(p => p.nflId + '');
+    const f0 = rep.frames[0].pos;
+    const blockers = rep.players.filter(p => p.side === 'BLOCK' && f0[p.nflId]).map(p => p.nflId + '')
+      .sort((a, b) => f0[a][0] - f0[b][0]);
+    const keys = [...blockers];
+    if (rep.frames.some(f => (f.sys.UNBLOCKED || 0) > 0)) keys.push('UNBLOCKED');
+    const peak = Object.fromEntries(keys.map(k => [k, Math.max(...rep.frames.map(f => f.sys[k] || 0))]));
+    const maxB = Math.max(1, ...Object.values(peak));
+    const qUps = rep.frames.map(f => f.pos[qb][1]), qAc = rep.frames.map(f => f.pos[qb][0]);
+    const y1 = Math.min(-10.5, Math.min(...qUps) - 6), cx = (Math.min(...qAc) + Math.max(...qAc)) / 2;
+    const view = { x0: cx - 12, x1: cx + 12, y0: y1 + 14, y1 };
+    const color = k => k === 'UNBLOCKED' ? '#e66767' : css(slotVar(pl[k].lined_up));
+    const label = k => k === 'UNBLOCKED' ? 'Unblocked' : `${short(pl[k].lined_up)} ${lastName(pl[k].name)}`;
+    return { rep, pl, qb, rushers, blockers, keys, peak, maxB, view, color, label, T: (rep.frames.length - 1) / 10 };
+  }
+  function ownership(f) {
+    const q = f.pos[P.qb], rs = P.rushers.map(r => f.pos[r]);
+    const owner = new Int8Array(GRID.length);
+    GRID.forEach(([gx, gy], i) => {
+      const px = q[0] + gx, py = q[1] + gy; let best = -1, bd = Math.hypot(gx, gy);
+      rs.forEach((r, k) => { const d = Math.hypot(px - r[0], py - r[1]); if (d < bd) { bd = d; best = k; } });
+      owner[i] = best;
+    });
+    return { q, owner };
+  }
+  const frameAt = t => P.rep.frames[Math.min(P.rep.frames.length - 1, Math.round(t * 10))];
+
+  // ---- canvas ----
+  const cv = document.getElementById('field'), ctx = cv.getContext('2d'), tip = document.getElementById('tip');
+  let W = 0, H = 0, S = 1;
+  const X = x => (x - P.view.x0) * S, Y = y => (P.view.y0 - y) * S;
+  function resize() {
+    const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    W = r.width; H = r.height; cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    S = W / 24; draw(cur);
+  }
+  function disc(x, y, r, fill, stroke, label, txt) {
+    ctx.beginPath(); ctx.arc(X(x), Y(y), r, 0, Math.PI * 2); ctx.fillStyle = fill; ctx.fill();
+    if (stroke) { ctx.lineWidth = 2; ctx.strokeStyle = stroke; ctx.stroke(); }
+    ctx.fillStyle = txt; ctx.font = `600 ${Math.max(9, r * 0.85)}px "Saira Semi Condensed", "Arial Narrow", sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, X(x), Y(y) + 0.5);
+  }
+  function draw(t) {
+    if (!W || !P) return;
+    const f = frameAt(t), v = P.view;
+    ctx.fillStyle = '#11151b'; ctx.fillRect(0, 0, W, H);
+    for (let y = Math.ceil(v.y1); y <= v.y0; y++) {
+      ctx.strokeStyle = y % 5 === 0 ? 'rgba(233,236,241,.16)' : 'rgba(233,236,241,.05)';
+      ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, Y(y)); ctx.lineTo(W, Y(y)); ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(111,155,255,.85)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, Y(0)); ctx.lineTo(W, Y(0)); ctx.stroke();
+    ctx.fillStyle = 'rgba(111,155,255,.9)'; ctx.font = '500 11px "IBM Plex Mono", monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+    ctx.fillText('LINE OF SCRIMMAGE', 8, Y(0) - 4);
+
+    const s = ownership(f), cs = RES * S + 0.6;
+    const owners = P.rushers.map(r => P.rep.assign[r] || ['UNBLOCKED']);
+    GRID.forEach(([gx, gy], i) => {
+      const o = s.owner[i], px = X(s.q[0] + gx - RES / 2), py = Y(s.q[1] + gy + RES / 2);
+      if (o < 0) ctx.fillStyle = 'rgba(233,236,241,.16)';
+      else {
+        const who = owners[o];
+        if (who[0] === 'UNBLOCKED') ctx.fillStyle = ((Math.round(gx * 4) + Math.round(gy * 4)) & 1) ? 'rgba(230,103,103,.75)' : 'rgba(230,103,103,.25)';
+        else ctx.fillStyle = hexA(P.color(who[Math.abs(Math.round(gx * 4) + Math.round(gy * 4)) % who.length]), .62);
+      }
+      ctx.fillRect(px, py, cs, cs);
+    });
+    ctx.setLineDash([4, 4]); ctx.strokeStyle = 'rgba(233,236,241,.45)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(X(s.q[0]), Y(s.q[1]), R * S, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+
+    const k = P.rep.frames.indexOf(f);
+    P.rushers.forEach(r => {
+      ctx.strokeStyle = 'rgba(230,103,103,.4)'; ctx.lineWidth = 1.5; ctx.beginPath();
+      for (let i = 0; i <= k; i++) { const p = P.rep.frames[i].pos[r]; i ? ctx.lineTo(X(p[0]), Y(p[1])) : ctx.moveTo(X(p[0]), Y(p[1])); }
+      ctx.stroke();
+    });
+    ctx.setLineDash([2, 4]); ctx.strokeStyle = 'rgba(233,236,241,.55)'; ctx.lineWidth = 1.2;
+    P.rushers.forEach(r => (P.rep.assign[r] || []).forEach(b => { const o = f.pos[b], p = f.pos[r]; if (!o) return; ctx.beginPath(); ctx.moveTo(X(o[0]), Y(o[1])); ctx.lineTo(X(p[0]), Y(p[1])); ctx.stroke(); }));
+    ctx.setLineDash([]);
+
+    const pr = Math.max(9, 0.5 * S);
+    P.blockers.forEach(b => { const p = f.pos[b]; disc(p[0], p[1], pr, P.color(b), '#11151b', short(P.pl[b].lined_up), '#fff'); });
+    P.rushers.forEach(r => { const p = f.pos[r]; disc(p[0], p[1], pr, '#11151b', '#e66767', P.pl[r].jersey ?? '', '#f2f3f5'); });
+    disc(s.q[0], s.q[1], pr, '#f2f3f5', '#11151b', 'QB', '#11151b');
+    if (f.ball && k > 0) { ctx.beginPath(); ctx.ellipse(X(f.ball[0]), Y(f.ball[1]), 4, 2.6, 0, 0, Math.PI * 2); ctx.fillStyle = '#c98a4b'; ctx.fill(); }
+    if (k === P.rep.frames.length - 1) {
+      const res = RESULT[P.rep.meta.passResult] || 'End';
+      ctx.fillStyle = P.rep.meta.passResult === 'S' ? '#e66767' : '#e9ecf1';
+      ctx.font = '700 15px "Saira Semi Condensed", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.fillText(res.toUpperCase(), X(s.q[0]), Y(s.q[1]) - pr - 8);
+    }
+    renderRail(f);
+  }
+
+  // ---- rail ----
+  const barsEl = document.getElementById('bars'), spark = document.getElementById('spark');
+  function buildBars() {
+    barsEl.innerHTML = P.keys.map(k => {
+      const tags = P.rep.pff_allowed[k];
+      return `<div class="bar" data-id="${k}"><span class="who" title="${k === 'UNBLOCKED' ? 'Unblocked rushers' : P.pl[k].name}"><span class="sw" style="background:${P.color(k)}"></span><span class="nm">${P.label(k)}</span>${tags ? `<span class="pff" title="PFF: ${tags.join(', ')} allowed">PFF</span>` : ''}</span><span class="track"><span class="fill" style="background:${P.color(k)}"></span></span><span class="val">0.0</span></div>`;
+    }).join('');
+  }
+  function renderRail(f) {
+    const p0 = P.rep.frames[0].pocket;
+    document.getElementById('pocket').innerHTML = `${f.pocket.toFixed(1)}<small> yd²</small>`;
+    document.getElementById('pocketSub').textContent = `${Math.round(f.pocket / p0 * 100)}% of the ${p0.toFixed(0)} yd² pocket at the snap`;
+    const lead = P.keys.map(k => [k, f.sys[k] || 0]).sort((a, b) => b[1] - a[1])[0];
+    barsEl.querySelectorAll('.bar').forEach(el => {
+      const v = f.sys[el.dataset.id] || 0;
+      el.querySelector('.fill').style.width = (v / P.maxB * 100) + '%';
+      el.querySelector('.val').textContent = v.toFixed(1);
+      el.classList.toggle('lead', el.dataset.id === lead[0] && lead[1] > 2);
+    });
+    const w = 284, h = 70, pad = { l: 26, r: 6, t: 6, b: 16 }, FULL = P.rep.meta.pocket_area_full, T = Math.max(P.T, 0.1);
+    const sx = v => pad.l + v / T * (w - pad.l - pad.r), sy = v => pad.t + (1 - v / FULL) * (h - pad.t - pad.b);
+    const pts = P.rep.frames.map(r => `${sx(r.t).toFixed(1)},${sy(r.pocket).toFixed(1)}`).join(' ');
+    const ink = css('--muted'), acc = css('--accent');
+    spark.innerHTML = `
+      <line x1="${pad.l}" x2="${w-pad.r}" y1="${sy(0)}" y2="${sy(0)}" stroke="${css('--line')}"/>
+      <text x="${pad.l-4}" y="${sy(FULL)+4}" text-anchor="end" font-size="9" fill="${ink}">${FULL.toFixed(0)}</text>
+      <text x="${pad.l-4}" y="${sy(0)+3}" text-anchor="end" font-size="9" fill="${ink}">0</text>
+      ${Array.from({ length: Math.floor(T) + 1 }, (_, s) => `<text x="${sx(s)}" y="${h-3}" text-anchor="middle" font-size="9" fill="${ink}">${s}s</text>`).join('')}
+      <polygon points="${sx(0)},${sy(0)} ${pts} ${sx(P.T)},${sy(0)}" fill="${acc}" fill-opacity=".12"/>
+      <polyline points="${pts}" fill="none" stroke="${acc}" stroke-width="2" stroke-linejoin="round"/>
+      <line x1="${sx(f.t)}" x2="${sx(f.t)}" y1="${pad.t}" y2="${sy(0)}" stroke="${css('--fg')}" stroke-opacity=".35"/>
+      <circle cx="${sx(f.t)}" cy="${sy(f.pocket)}" r="4" fill="${acc}" stroke="${css('--panel')}" stroke-width="2"/>`;
+  }
+
+  // ---- play selection / story ----
+  const sel = document.getElementById('playSel');
+  sel.innerHTML = replays.map((r, i) => {
+    const m = r.meta, lab = m.showcase === 'worst_rep' ? `Worst rep · ${m.worst_of}` : (TAGS[m.showcase] || m.showcase);
+    return `<option value="${i}">${lab} — ${m.possessionTeam} vs ${m.defensiveTeam}, Q${m.quarter} ${m.gameClock}</option>`;
+  }).join('');
+  function storyText(rep) {
+    const m = rep.meta, last = rep.frames[rep.frames.length - 1];
+    const pk = Object.fromEntries(Object.keys(last.sys).map(k => [k, Math.max(...rep.frames.map(f => f.sys[k] || 0))]));
+    const top = Object.entries(pk).sort((a, b) => b[1] - a[1])[0];
+    const nm = k => k === 'UNBLOCKED' ? 'an unblocked rusher' : `${short(P.pl[k].lined_up)} ${P.pl[k].name}`;
+    const sack = Object.entries(rep.pff_allowed).filter(([, t]) => t.includes('sack')).map(([k]) => k);
+    let s = `<b>${STORY[m.showcase] || ''}</b> `;
+    if (top && top[1] > 0.5) s += `Most space surrendered: <b>${nm(top[0])}</b> (${top[1].toFixed(1)} yd² at peak). `;
+    else s += 'No blocker surrendered meaningful space. ';
+    if (sack.length) s += sack.includes(top?.[0]) ? 'PFF charged him with the sack too.' : `PFF charged ${sack.map(k => `${nm(k)} (${pk[k].toFixed(1)} yd²)`).join(', ')} with the sack.`;
+    return s;
+  }
+  function load(i) {
+    stop(); P = prepare(replays[i]); const m = P.rep.meta;
+    document.getElementById('sit').textContent = `${m.down}${['','st','nd','rd','th'][m.down] || 'th'} & ${m.yardsToGo} · Q${m.quarter} ${m.gameClock} · ${m.possessionTeam} vs ${m.defensiveTeam}`;
+    document.getElementById('res').textContent = `${(m.dropBackType || '').toLowerCase()} · ${P.rushers.length}-man rush · ${RESULT[m.passResult] || ''}`;
+    document.getElementById('desc').textContent = m.playDescription;
+    document.getElementById('story').innerHTML = storyText(P.rep);
+    slider.max = P.rep.frames.length - 1;
+    const ev = [[0, 'Snap']]; if (P.T > 2.9) ev.push([2.5, '2.5s']); ev.push([P.T, RESULT[m.passResult] || 'End']);
+    document.getElementById('ticks').innerHTML = ev.map(([s, l]) => `<span style="left:${s / P.T * 100}%">${l}</span>`).join('');
+    const tk = document.getElementById('ticks').children; tk[0].style.transform = 'none'; tk[tk.length - 1].style.transform = 'translateX(-100%)';
+    buildBars(); set(Math.min(2.5, P.T));
+  }
+  sel.addEventListener('change', () => load(+sel.value));
+
+  // ---- controls ----
+  const slider = document.getElementById('t'), clock = document.getElementById('clock'), playBtn = document.getElementById('play');
+  function set(t) { cur = t; slider.value = Math.round(t * 10); clock.textContent = t.toFixed(1) + 's'; draw(t); }
+  slider.addEventListener('input', () => { stop(); set(slider.value / 10); });
+  let raf = 0, last = 0;
+  function loop(ts) {
+    const dt = last ? (ts - last) / 1000 : 0; last = ts;
+    const t = cur + dt * 0.75;
+    if (t >= P.T) { set(P.T); stop(); return; }
+    set(t); raf = requestAnimationFrame(loop);
+  }
+  function stop() { cancelAnimationFrame(raf); raf = 0; last = 0; if (P) playBtn.textContent = cur >= P.T ? 'Replay' : 'Play'; }
+  playBtn.addEventListener('click', () => {
+    if (raf) return stop();
+    if (cur >= P.T - 1e-6) set(0);
+    playBtn.textContent = 'Pause'; raf = requestAnimationFrame(loop);
+  });
+  cv.addEventListener('pointermove', e => {
+    const r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+    const wx = mx / S + P.view.x0, wy = P.view.y0 - my / S, f = frameAt(cur), q = f.pos[P.qb];
+    const gx = wx - q[0], gy = wy - q[1];
+    if (gx * gx + gy * gy > R * R) { tip.hidden = true; return; }
+    let best = -1, bd = Math.hypot(gx, gy);
+    P.rushers.forEach((rid, k) => { const p = f.pos[rid]; const d = Math.hypot(wx - p[0], wy - p[1]); if (d < bd) { bd = d; best = k; } });
+    if (best < 0) tip.innerHTML = '<b>Clean pocket</b><br>QB reaches this spot first';
+    else {
+      const rid = P.rushers[best], rp = P.pl[rid], who = P.rep.assign[rid] || ['UNBLOCKED'];
+      tip.innerHTML = `<b>Lost to #${rp.jersey ?? ''} ${rp.name} (${rp.lined_up || rp.position})</b><br>Charged to ${who.map(P.label).join(' + ')}${who.length > 1 ? ' (split)' : ''}`;
+    }
+    tip.hidden = false;
+    tip.style.left = Math.min(mx + 14, r.width - tip.offsetWidth - 6) + 'px'; tip.style.top = (my + cv.offsetTop + 14) + 'px';
+  });
+  cv.addEventListener('pointerleave', () => tip.hidden = true);
+
+  // ---- leaderboard ----
+  const repIndex = new Map(replays.map((r, i) => [`${r.meta.gameId}:${r.meta.playId}`, i]));
+  let pos = 'T';
+  const spread = Object.fromEntries(['T', 'G', 'C'].map(p => [p, Math.max(...LB.players.filter(x => x.position === p).map(x => Math.abs(x.vs_avg)), 0.1)]));
+  document.getElementById('lbNote').textContent = `Average yd² charged per pass-block snap at the 2.5-second mark. Lower is better. Min. ${LB.min_snaps} snaps; ranked within the slot each player actually lined up at. Position average: T ${LB.position_averages.T}, G ${LB.position_averages.G}, C ${LB.position_averages.C} yd².`;
+  function renderTable() {
+    const q = document.getElementById('q').value.trim().toLowerCase();
+    const rows = LB.players.filter(p => p.position === pos).sort((a, b) => a.sys25_mean - b.sys25_mean)
+      .map((p, i) => [p, i + 1]).filter(([p]) => !q || p.name.toLowerCase().includes(q) || p.team.toLowerCase().includes(q));
+    document.getElementById('rows').innerHTML = rows.map(([p, rank]) => {
+      const x = Math.max(2, Math.min(98, 50 + p.vs_avg / spread[pos] * 46));
+      const tier = p.tier === 'Wall' ? 'g' : p.tier === 'Leaky' ? 'b' : 'm';
+      const key = `${p.worst_rep.gameId}:${p.worst_rep.playId}`, idx = repIndex.get(key);
+      const slots = Object.entries(p.lined_up).map(([k, v]) => `${k} ${v}`).join(', ');
+      return `<tr><td>${rank}</td><td>${p.name}<span class="tm">${p.team}</span></td><td title="${slots}">${Object.keys(p.lined_up)[0]}</td>
+        <td class="n">${p.snaps}</td><td class="n">${p.sys25_mean.toFixed(2)}</td>
+        <td class="dist"><div class="distbar" title="${p.vs_avg >= 0 ? '+' : ''}${p.vs_avg.toFixed(2)} yd² vs ${pos} avg"><b></b><i style="left:calc(${x}% - 1.5px)"></i></div></td>
+        <td class="n">${p.pressure_rate.toFixed(3)}</td><td><span class="grade ${tier}">${p.tier}</span></td>
+        <td>${idx !== undefined ? `<button class="watch" type="button" data-i="${idx}">Watch · ${p.worst_rep.sys25.toFixed(0)} yd²</button>` : `<span class="note">${p.worst_rep.sys25.toFixed(0)} yd²</span>`}</td></tr>`;
+    }).join('') || '<tr><td colspan="9" class="note">No players match.</td></tr>';
+  }
+  document.getElementById('rows').addEventListener('click', e => {
+    const b = e.target.closest('.watch'); if (!b) return;
+    sel.value = b.dataset.i; load(+b.dataset.i); document.querySelector('.picker').scrollIntoView({ behavior: 'smooth' });
+  });
+  document.getElementById('q').addEventListener('input', renderTable);
+  document.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => {
+    document.querySelectorAll('.chip').forEach(x => x.setAttribute('aria-pressed', x === c)); pos = c.dataset.pos; renderTable();
+  }));
+
+  // ---- stats ----
+  const pct = v => Math.round(v * 100) + '%';
+  document.getElementById('stats').innerHTML = [
+    [pct(ST.sack.top), `of ${ST.sack.plays} PFF-charged sacks: that blocker also surrendered the most space (chance: ${pct(ST.sack.chance)}).`],
+    [ST.sack.auc.toFixed(2), `AUC: SYS separates sack-allowed blocker-plays from the rest (0.5 = coin flip). Hurries: ${ST.hurry.auc.toFixed(2)}.`],
+    [ST.rho.toFixed(2), 'Rank correlation of the leaderboard when the pocket is 4 or 6 yards instead of 5. The ranking doesn\'t depend on the radius.'],
+    [ST.plays.toLocaleString(), `dropbacks from ${ST.games} games, ${ST.rows.toLocaleString()} blocker-plays. Plays with missing tracking are dropped, not patched.`],
+  ].map(([v, t]) => `<div class="stat"><div class="v">${v}</div><p>${t}</p></div>`).join('');
+  document.getElementById('dataTag').textContent = `Real data · NFL Big Data Bowl 2023 tracking + PFF scouting · ${LB.players.length} linemen`;
+
+  renderTable();
+  window.addEventListener('resize', resize);
+  matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => draw(cur));
+  document.fonts?.ready.then(() => draw(cur));
+  P = prepare(replays[0]); resize(); load(0);
+})();
+</script>
+</html>

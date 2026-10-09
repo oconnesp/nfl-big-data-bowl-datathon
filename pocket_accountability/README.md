@@ -11,8 +11,13 @@ Full method and integrity rules: docstring of `compute.py`.
 pip install -r pocket_accountability/requirements.txt
 cd pocket_accountability
 python run_all.py            # everything: compute -> checks -> leaderboard -> replays -> checks (~1.5 min)
-python run_all.py --games 2  # quick smoke run
+python build_page.py         # -> pocket_accountability_map.html (self-contained page, open from disk)
 ```
+
+The page (Workstream 3) is built from `page_template.html`, with the showcase replays, every
+Leaky lineman's worst rep, the leaderboard and the headline validation numbers inlined. That
+means it works from `file://` without a server. Fonts load from Google Fonts and fall back to
+system fonts offline.
 
 Individual steps:
 
