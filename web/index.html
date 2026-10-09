@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pocket Accountability Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="topline"><div class="eyebrow">Offensive line · pass protection</div><button class="chip" id="theme" type="button">Dark mode</button></div>
+    <h1>Pocket Accountability Map</h1>
+    <p class="lede">Each frame, the QB's pocket is the space he can reach before any rusher. When a rusher takes some of it, the blocker assigned to that rusher is charged. The result is <strong>Square Yards Surrendered (SYS)</strong>: a protection stat for each lineman, measured in actual field space instead of sacks and pressures.</p>
+    <span class="tag" id="dataTag" hidden></span>
+  </header>
+
+  <section class="stage" id="stage" aria-label="Play replay">
+    <div class="fieldbox">
+      <div class="playhead">
+        <select id="playPick" aria-label="Choose a showcase play" disabled><option>Loading plays…</option></select>
+        <button class="btn ghost" id="bcast" type="button" aria-pressed="false">Broadcast view</button>
+      </div>
+      <div class="playhead"><span class="sit" id="sit">Loading…</span><span class="res" id="res"></span></div>
+      <canvas id="field" tabindex="0" role="img" aria-label="Top-down replay of the pocket"></canvas>
+      <div id="tip" hidden></div>
+      <div class="controls">
+        <button class="btn" id="play" type="button">Play</button>
+        <div class="scrub">
+          <input id="t" type="range" min="0" max="0" step="1" value="0" aria-label="Time after snap">
+          <div class="ticks" id="ticks"></div>
+        </div>
+        <span class="clock" id="clock">0.0s</span>
+      </div>
+      <p class="desc" id="desc"></p>
+      <div class="err" id="replayErr" role="alert" hidden></div>
+      <p class="sr-only" id="live" aria-live="polite"></p>
+    </div>
+
+    <aside class="rail" aria-label="Live readout">
+      <div class="hero">
+        <h3>Pocket remaining</h3>
+        <div class="num" id="pocket">—</div>
+        <div class="sub" id="pocketSub">of the pocket at the snap</div>
+      </div>
+      <svg id="spark" viewBox="0 0 284 70" width="100%" role="img" aria-label="Pocket area over time"></svg>
+      <div style="display:grid;gap:10px">
+        <h3>Square yards surrendered</h3>
+        <div class="bars" id="bars"></div>
+        <p class="lead-note" id="leadNote"></p>
+        <p class="note">Measured from where each rusher lined up, so pre-snap alignment isn't charged to anyone.</p>
+      </div>
+    </aside>
+  </section>
+
+  <div class="legend" aria-label="Map legend">
+    <span><i style="background:rgba(233,236,241,.28);outline:1px solid rgba(233,236,241,.5)"></i>Clean pocket (QB gets there first)</span>
+    <span><i style="background:var(--b-rt)"></i>Shaded: lost space, in the colour of the blocker charged (checkered = split double team)</span>
+    <span><i class="hatch" style="background:var(--b-un)"></i>Hatched: unblocked rusher</span>
+    <span><i style="background:#11151b;border:2px solid #e66767"></i>Pass rusher</span>
+    <span><i style="background:transparent;border-top:2px dotted var(--muted);height:0;width:16px;border-radius:0"></i>Block assignment (PFF)</span>
+  </div>
+
+  <section class="angles" aria-label="Who it's for">
+    <article class="card">
+      <h3>Coach</h3><h2>Which rep to put on film</h2>
+      <p>Open the lineman who surrendered the most space and go straight to his worst rep.</p>
+      <button class="btn" id="goCoach" type="button">Show the worst rep</button><p class="note" id="coachMsg"></p>
+    </article>
+    <article class="card">
+      <h3>Scout</h3><h2>Rank him against his position</h2>
+      <p>Every lineman is compared with the average at his position, with a percentile and a tier.</p>
+      <button class="btn" id="goScout" type="button">Search the leaderboard</button>
+    </article>
+    <article class="card">
+      <h3>Broadcaster</h3><h2>The pocket, live</h2>
+      <p>A clean overlay of the shrinking pocket and the lineman giving up the most ground, ready for the replay.</p>
+      <button class="btn" id="goBroadcast" type="button">Play broadcast view</button>
+    </article>
+  </section>
+
+  <section class="season" id="season">
+    <div class="season-head">
+      <div style="display:grid;gap:4px">
+        <h2>Season leaderboard · SYS at 2.5s</h2>
+        <p class="note" id="lbNote">Loading leaderboard…</p>
+      </div>
+      <div class="filters">
+        <input type="search" id="search" maxlength="50" placeholder="Player or team" aria-label="Search linemen by name or team">
+        <div class="chips" role="group" aria-label="Filter by position">
+          <button class="chip" type="button" data-pos="ALL" aria-pressed="true">All OL</button>
+          <button class="chip" type="button" data-pos="T" aria-pressed="false" aria-label="Filter by position: tackles">Tackles</button>
+          <button class="chip" type="button" data-pos="G" aria-pressed="false" aria-label="Filter by position: guards">Guards</button>
+          <button class="chip" type="button" data-pos="C" aria-pressed="false" aria-label="Filter by position: centers">Centers</button>
+        </div>
+      </div>
+    </div>
+    <div class="err" id="lbErr" role="alert" hidden></div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>Player</th><th>Pos</th><th class="n">Snaps</th><th class="n">SYS@2.5</th><th class="dist">vs. position avg</th><th class="n">Pctl</th><th>Tier</th></tr></thead>
+        <tbody id="rows"><tr><td colspan="8" class="empty">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="season" id="validation" aria-labelledby="valTitle">
+    <h2 id="valTitle">Does it work?</h2>
+    <div class="err" id="valErr" role="alert" hidden></div>
+    <div class="heads" id="heads"></div>
+    <div class="charts" id="charts"></div>
+  </section>
+
+  <section class="method">
+    <div class="step"><span class="k">1 · Draw the pocket</span><p>Sample a 5-yard disk around the QB every 0.1s. A point belongs to the QB if he is closer to it than every pass rusher.</p></div>
+    <div class="step"><span class="k">2 · Find who took it</span><p>Points a rusher is closer to are lost to him. Subtract what he owned at the snap, so only ground gained after the snap counts.</p></div>
+    <div class="step"><span class="k">3 · Charge the blocker</span><p>PFF's block assignments link each rusher to his blocker. Doubles split the charge. Free rushers go to "Unblocked", which points at the scheme or a missed call.</p></div>
+  </section>
+  <p class="note">Data: NFL Big Data Bowl 2023 (2021 weeks 1–8, dropbacks). Tracking ends at the throw or sack.</p>
+</div>
+
+<dialog id="panel" aria-labelledby="panelTitle">
+  <button class="btn ghost close" id="panelClose" type="button" aria-label="Close player panel">Close</button>
+  <div id="panelBody"></div>
+</dialog>
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
