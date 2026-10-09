@@ -10,8 +10,10 @@ Exactly the format in `pocket_accountability/README.md` (`meta`, `players[side Q
 
 ## leaderboard.json
 `{ stub?, provisional?, source?, minSnaps, positionAverages: {T,G,C}, players: [{ nflId, name, team, position: T|G|C, snaps, sys25, sysEnd, positionAvg, percentile (0–100, higher = less space given up), pressureRate?, byWeek?: [{week, snaps, sys25}], worstRep?: {gameId, playId, week, sys25, description} }] }`
-Currently **provisional**: aggregated in `web/` from `pocket_accountability/out/blocker_plays.csv` (non-helper OL rows with sys25). Replace it with Workstream A's `leaderboard.json` when it ships.
+`npm run data` maps Workstream A's final `pocket_accountability/out/leaderboard.json` into this shape (`tier` is taken from A). If that file is missing, it falls back to aggregating `blocker_plays.csv`.
 
-## validation.json (Workstream B)
+## validation.json
+`npm run data` computes it from the pipeline outputs: AUC of sys25 vs PFF pressure allowed, odd/even-week stability within position (vs PFF pressure rate), the radius-sensitivity ρ from `sensitivity.json`, and mean sys25 by PFF outcome.
+
 `{ stub?, headlines: [{label, value, unit?, note?}], charts: [{id, title, type: bar|line|scatter, xLabel, yLabel, xTicks?, series: [{name, points: [[x, y], …]}], caption?}] }`
 While `stub` is `true`, every tile and chart shows a "Placeholder" label.
