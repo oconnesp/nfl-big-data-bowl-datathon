@@ -8,6 +8,7 @@ const hexA = (hex, a) => { const n = parseInt(hex.replace('#', ''), 16); return 
 const SLOT_TOKEN = { LT: '--b-lt', LG: '--b-lg', C: '--b-c', RG: '--b-rg', RT: '--b-rt' };
 const EXT = ['--b-x1', '--b-x2', '--b-x3', '--b-x4'];
 const OUTCOME = { S: 'Sack', C: 'Complete', I: 'Incomplete', IN: 'Interception', R: 'Scramble' };
+const SHOWCASE = { sack_hidden_culprit: 'SYS disagrees with PFF', clean_pocket: 'Clean pocket', stunt: 'Stunt', sack_culprit_confirmed: 'SYS agrees with PFF', unblocked: 'Free rusher', sack: 'Sack' };
 const ord = n => ['', '1st', '2nd', '3rd', '4th'][n] || `${n}th`;
 const short = name => { const p = String(name || '').split(' '); return p.length > 1 && !p[0].endsWith('.') ? `${p[0][0]}. ${p.slice(1).join(' ')}` : String(name || ''); };
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -31,7 +32,7 @@ function fail(el, file, errs) {
 }
 
 // ---------- play selection ----------
-function playLabel(p) { const m = p.meta; return `${m.possessionTeam} vs ${m.defensiveTeam} · Q${m.quarter} ${ord(m.down)} & ${m.yardsToGo} · ${OUTCOME[m.passResult] || m.passResult}${m.synthetic ? ' · illustrative' : ''}`; }
+function playLabel(p) { const m = p.meta, tag = m.synthetic ? 'Illustrative mockup play' : SHOWCASE[m.showcase] || ''; return `${tag ? tag + ': ' : ''}${m.possessionTeam} vs ${m.defensiveTeam} · ${m.quarter > 4 ? 'OT' : 'Q' + m.quarter} ${ord(m.down)} & ${m.yardsToGo} · ${OUTCOME[m.passResult] || m.passResult}`; }
 function setupPicker() {
   const sel = $('playPick');
   sel.innerHTML = S.plays.map((p, i) => `<option value="${i}">${esc(playLabel(p))}</option>`).join('');
@@ -95,7 +96,7 @@ function sackJersey(play, tl) {
 }
 function renderPlayhead() {
   const m = S.play.meta;
-  $('sit').textContent = `Q${m.quarter} · ${ord(m.down)} & ${m.yardsToGo} · ${m.gameClock} · ${m.possessionTeam} vs ${m.defensiveTeam}`;
+  $('sit').textContent = `${m.quarter > 4 ? 'OT' : 'Q' + m.quarter} · ${ord(m.down)} & ${m.yardsToGo} · ${m.gameClock} · ${m.possessionTeam} vs ${m.defensiveTeam}`;
   const pff = Object.entries(S.play.pff_allowed || {}).map(([id, what]) => {
     const b = S.tl.blockers.find(x => String(x.nflId) === id);
     return b ? `${what.join('/')} → ${b.lined_up || b.position} ${short(b.name)}` : null;
@@ -307,7 +308,8 @@ function onHover(e) {
 }
 
 // ---------- leaderboard + player panel ----------
-const tier = p => p.percentile >= 75 ? ['g', 'Wall'] : p.percentile <= 25 ? ['b', 'Leaky'] : ['m', 'Average'];
+const TIER = { Wall: 'g', Leaky: 'b', Average: 'm' };
+const tier = p => p.tier && TIER[p.tier] ? [TIER[p.tier], p.tier] : p.percentile >= 75 ? ['g', 'Wall'] : p.percentile <= 25 ? ['b', 'Leaky'] : ['m', 'Average'];
 function displayed() {
   if (!S.lb) return [];
   return S.lb.players.filter(p => (S.pos === 'ALL' || p.position === S.pos) && (!S.q || p.name.toLowerCase().includes(S.q) || p.team.toLowerCase().includes(S.q)))
@@ -336,9 +338,19 @@ function setupLeaderboardUI() {
   $('rows').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('tr[data-id]')) { e.preventDefault(); openPanel(e.target.dataset.id); } });
   $('panelClose').addEventListener('click', () => $('panel').close());
 }
+function showcaseRep(id) {
+  let best = null;
+  S.plays.forEach((pl, i) => {
+    if (!pl.players.some(x => String(x.nflId) === String(id) && x.side === 'BLOCK')) return;
+    const v = Math.max(0, ...pl.frames.map(f => (f.sys || {})[id] || 0));
+    if (!best || v > best.v) best = { i, v, pl };
+  });
+  return best;
+}
 function openPanel(id) {
   const p = S.lb && S.lb.players.find(x => String(x.nflId) === String(id)); if (!p) return;
   const t = tier(p), d = p.sys25 - p.positionAvg, wk = (p.byWeek || []).slice().sort((a, b) => a.week - b.week), wr = p.worstRep;
+  const sc = showcaseRep(p.nflId);
   const idx = wr ? S.plays.findIndex(x => x.meta.gameId === wr.gameId && x.meta.playId === wr.playId) : -1;
   $('panelBody').innerHTML = `
     <p class="eyebrow">${esc(p.team)} · ${esc(p.position)}</p><h2 id="panelTitle">${esc(p.name)}</h2>
@@ -350,17 +362,19 @@ function openPanel(id) {
     </div>
     <p class="note">${p.snaps} snaps lasting 2.5 s or more · ${d >= 0 ? '+' : ''}${d.toFixed(1)} yd² vs the ${esc(p.position)} average${Number.isFinite(p.pressureRate) ? ` · PFF pressure allowed on ${(p.pressureRate * 100).toFixed(1)}% of those snaps` : ''}</p>
     <h3>SYS by week</h3>${wk.length ? weekChart(wk, p.positionAvg) : '<p class="note">Weekly data unavailable.</p>'}
-    <h3>Worst rep</h3>${wr ? `<p>Week ${wr.week} · <strong>${wr.sys25.toFixed(1)} yd²</strong> surrendered by 2.5 s</p><p class="note">${esc(wr.description)}</p>${idx >= 0 ? '<button class="btn" id="watch" type="button">Watch this rep</button>' : '<p class="note">Replay not in the showcase set yet. Workstream A exports showcase replays.</p>'}` : '<p class="note">No worst rep recorded.</p>'}`;
+    <h3>Worst rep</h3>${wr ? `<p>${wr.week ? `Week ${wr.week} · ` : ''}<strong>${wr.sys25.toFixed(1)} yd²</strong> surrendered by 2.5 s</p><p class="note">${esc(wr.description)}</p>${idx >= 0 ? '<button class="btn" id="watch" type="button">Watch this rep</button>' : '<p class="note">Replay not in the showcase set.</p>'}` : '<p class="note">No worst rep recorded.</p>'}
+    ${sc && idx < 0 ? `<h3>On the replay</h3><p class="note">${esc(playLabel(sc.pl))} · up to ${sc.v.toFixed(1)} yd² surrendered</p><button class="btn" id="watchSc" type="button">Watch his showcase rep</button>` : ''}`;
   $('panel').showModal();
+  if (sc && idx < 0) $('watchSc').addEventListener('click', () => { $('panel').close(); selectPlay(sc.i); $('stage').scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth' }); });
   if (idx >= 0) $('watch').addEventListener('click', () => { $('panel').close(); selectPlay(idx); $('stage').scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth' }); });
 }
 function weekChart(wk, avg) {
   const w = 320, h = 120, pad = { l: 28, r: 8, t: 8, b: 20 }, max = Math.max(avg, ...wk.map(x => x.sys25)) * 1.15 || 1;
   const bw = (w - pad.l - pad.r) / 8, sy = v => pad.t + (1 - v / max) * (h - pad.t - pad.b);
-  const bars = wk.map(x => `<rect x="${pad.l + (x.week - 1) * bw + 3}" y="${sy(x.sys25)}" width="${bw - 6}" height="${sy(0) - sy(x.sys25)}" style="fill:var(--accent)" rx="2"><title>Week ${x.week}: ${x.sys25.toFixed(1)} yd² over ${x.snaps} snaps</title></rect>`).join('');
+  const bars = wk.map(x => `<rect x="${pad.l + (x.week - 1) * bw + 3}" y="${sy(x.sys25)}" width="${bw - 6}" height="${sy(0) - sy(x.sys25)}" style="fill:var(--accent)" rx="2"><title>Week ${x.week}: ${x.sys25.toFixed(1)} yd²${x.snaps ? ` over ${x.snaps} snaps` : ''}</title></rect>`).join('');
   const labels = Array.from({ length: 8 }, (_, i) => `<text x="${pad.l + i * bw + bw / 2}" y="${h - 6}" text-anchor="middle" font-size="10" style="fill:var(--muted)">W${i + 1}</text>`).join('');
   return `<svg viewBox="0 0 ${w} ${h}" width="100%" role="img" aria-label="SYS at 2.5 seconds by week; dashed line is the position average, ${avg.toFixed(1)} square yards">${bars}<line x1="${pad.l}" x2="${w - pad.r}" y1="${sy(avg)}" y2="${sy(avg)}" style="stroke:var(--bad)" stroke-dasharray="4 3"/><text x="${pad.l - 4}" y="${sy(avg) + 3}" text-anchor="end" font-size="9" style="fill:var(--bad)">avg</text>${labels}</svg>
-  <table class="sr-only"><caption>SYS by week</caption><tr><th>Week</th><th>Snaps</th><th>SYS@2.5</th></tr>${wk.map(x => `<tr><td>${x.week}</td><td>${x.snaps}</td><td>${x.sys25.toFixed(1)}</td></tr>`).join('')}</table>`;
+  <table class="sr-only"><caption>SYS by week</caption><tr><th>Week</th><th>SYS@2.5</th></tr>${wk.map(x => `<tr><td>${x.week}</td><td>${x.sys25.toFixed(1)}</td></tr>`).join('')}</table>`;
 }
 
 // ---------- validation section ----------
@@ -401,7 +415,8 @@ function setupAngles() {
   $('goCoach').addEventListener('click', () => {
     const rows = displayed(); $('season').scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth' });
     if (!rows.length) { $('coachMsg').textContent = 'No linemen to open yet.'; return; }
-    openPanel(rows.reduce((a, b) => (b.sys25 > a.sys25 ? b : a)).nflId);
+    const withRep = rows.filter(p => showcaseRep(p.nflId)), pool = withRep.length ? withRep : rows;
+    openPanel(pool.reduce((a, b) => (b.sys25 - b.positionAvg > a.sys25 - a.positionAvg ? b : a)).nflId);
   });
   $('goScout').addEventListener('click', () => { $('season').scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth' }); $('search').focus({ preventScroll: true }); });
   $('goBroadcast').addEventListener('click', () => { setBroadcast(true); $('stage').scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth' }); if (S.tl && !S.playing) { set(0); toggle(); } });

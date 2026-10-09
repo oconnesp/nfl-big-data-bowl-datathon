@@ -5,7 +5,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { validateReplays, validateLeaderboard } from '../src/validate.js';
+import { validateReplays, validateLeaderboard, validateValidation } from '../src/validate.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const OUT = join(here, '..', 'public', 'data');
@@ -137,10 +137,86 @@ const errs = validateReplays(replays);
 if (errs.length) { console.error('replays.json failed validation:\n' + errs.slice(0, 10).join('\n')); process.exit(1); }
 writeFileSync(join(OUT, 'replays.json'), JSON.stringify(replays));
 console.log(`replays: ${real.length} from the pipeline + 1 illustrative`);
-const lb = leaderboard();
+const lb = leaderboardFromA() || leaderboard();
+writeValidation();
 if (!lb) console.log('leaderboard: pipeline CSV not found, keeping the existing file');
 else {
   const e = validateLeaderboard(lb);
   if (e.length) { console.error('leaderboard.json failed validation:\n' + e.slice(0, 10).join('\n')); process.exit(1); }
   writeFileSync(join(OUT, 'leaderboard.json'), JSON.stringify(lb));
+}
+
+// ---- Final Workstream A leaderboard (pocket_accountability/out/leaderboard.json), mapped to the page format ----
+function lookups() {
+  const plays = new Map(parseCSV(readFileSync(join(DATA, 'plays.csv'), 'utf8')).map(p => [`${p.gameId}-${p.playId}`, p]));
+  const week = new Map(parseCSV(readFileSync(join(DATA, 'games.csv'), 'utf8')).map(g => [g.gameId, +g.week]));
+  return { plays, week };
+}
+function leaderboardFromA() {
+  const f = join(PIPE, 'leaderboard.json');
+  if (!existsSync(f)) return null;
+  const a = JSON.parse(readFileSync(f, 'utf8')), { plays, week } = lookups();
+  const players = a.players.map(p => {
+    const w = p.worst_rep, pl = w && plays.get(`${w.gameId}-${w.playId}`);
+    return {
+      nflId: p.nflId, name: p.name, team: p.team, position: p.position, snaps: p.snaps,
+      sys25: p.sys25_mean, sysEnd: p.sys_end_mean, positionAvg: p.pos_avg, percentile: p.percentile, tier: p.tier,
+      pressureRate: p.pressure_rate, pressuresAllowed: p.pressures_allowed,
+      byWeek: Object.entries(p.weekly || {}).map(([wk, v]) => ({ week: +wk, sys25: v })).sort((x, y) => x.week - y.week),
+      worstRep: w ? { gameId: w.gameId, playId: w.playId, week: week.get(String(w.gameId)) ?? null, sys25: w.sys25,
+        description: (pl ? `Q${pl.quarter} ${pl.gameClock} · ${pl.possessionTeam} vs ${pl.defensiveTeam} · ${pl.playDescription}` : `Game ${w.gameId}, play ${w.playId}`).slice(0, 200) } : undefined,
+    };
+  });
+  console.log(`leaderboard: ${players.length} linemen from Workstream A's final leaderboard.json`);
+  return { stub: false, minSnaps: a.min_snaps, positionAverages: a.position_averages, players,
+    source: 'Percentiles and tiers are within the position each player actually lined up at (PFF).' };
+}
+
+// ---- "Does it work?" numbers, computed from the pipeline outputs ----
+function auc(pos, neg) {
+  const all = [...pos.map(v => [v, 1]), ...neg.map(v => [v, 0])].sort((a, b) => a[0] - b[0]);
+  let rankSum = 0;
+  for (let i = 0; i < all.length;) { let j = i; while (j < all.length && all[j][0] === all[i][0]) j++; const r = (i + j + 1) / 2; for (let k = i; k < j; k++) if (all[k][1]) rankSum += r; i = j; }
+  return (rankSum - pos.length * (pos.length + 1) / 2) / (pos.length * neg.length);
+}
+function pearson(xs, ys) { const n = xs.length, mx = xs.reduce((a, b) => a + b) / n, my = ys.reduce((a, b) => a + b) / n; let sxy = 0, sxx = 0, syy = 0; for (let i = 0; i < n; i++) { sxy += (xs[i] - mx) * (ys[i] - my); sxx += (xs[i] - mx) ** 2; syy += (ys[i] - my) ** 2; } return sxy / Math.sqrt(sxx * syy); }
+function writeValidation() {
+  const rows = parseCSV(readFileSync(join(PIPE, 'blocker_plays.csv'), 'utf8')).filter(r => r.is_unblocked !== 'True' && r.is_helper !== 'True' && r.nflId && r.sys25 !== '');
+  const flag = r => +r.pff_sackAllowed ? 'Sack' : +r.pff_hitAllowed ? 'Hit' : +r.pff_hurryAllowed ? 'Hurry' : 'Clean';
+  const pos = rows.filter(r => flag(r) !== 'Clean').map(r => +r.sys25), neg = rows.filter(r => flag(r) === 'Clean').map(r => +r.sys25);
+  const aPress = auc(pos, neg), aSack = auc(rows.filter(r => flag(r) === 'Sack').map(r => +r.sys25), neg);
+  const outcomes = ['Clean', 'Hurry', 'Hit', 'Sack'], mean = o => { const v = rows.filter(r => flag(r) === o).map(r => +r.sys25); return v.reduce((a, b) => a + b, 0) / v.length; };
+  // Split-half stability: odd vs even weeks, qualified linemen, centred within position (tackles run higher).
+  const lb = JSON.parse(readFileSync(join(PIPE, 'leaderboard.json'), 'utf8')), posOf = new Map(lb.players.map(p => [String(p.nflId), p.position]));
+  const h = new Map();
+  for (const r of rows) {
+    if (!posOf.has(r.nflId)) continue;
+    const e = h.get(r.nflId) || { odd: { n: 0, s: 0, p: 0 }, even: { n: 0, s: 0, p: 0 } }; h.set(r.nflId, e);
+    const b = +r.week % 2 ? e.odd : e.even; b.n++; b.s += +r.sys25; b.p += flag(r) !== 'Clean' ? 1 : 0;
+  }
+  const ids = [...h.keys()].filter(id => h.get(id).odd.n >= 30 && h.get(id).even.n >= 30);
+  const centred = (get) => { const by = {}; ids.forEach(id => (by[posOf.get(id)] ||= []).push(get(id))); const m = Object.fromEntries(Object.entries(by).map(([k, v]) => [k, v.reduce((a, b) => a + b) / v.length])); return ids.map(id => get(id) - m[posOf.get(id)]); };
+  const sO = centred(id => h.get(id).odd.s / h.get(id).odd.n), sE = centred(id => h.get(id).even.s / h.get(id).even.n);
+  const pO = centred(id => h.get(id).odd.p / h.get(id).odd.n), pE = centred(id => h.get(id).even.p / h.get(id).even.n);
+  const rSys = pearson(sO, sE), rPress = pearson(pO, pE);
+  const sens = JSON.parse(readFileSync(join(PIPE, 'sensitivity.json'), 'utf8')), rho = sens.min_overall_sys25_rho;
+  const v = {
+    stub: false,
+    headlines: [
+      { label: 'AUC: SYS@2.5 vs PFF pressure allowed', value: aPress.toFixed(2), note: `Across ${rows.length.toLocaleString('en-US')} blocker-plays, SYS is higher when PFF charged the lineman with a hurry, hit or sack (0.5 = coin flip). Sacks alone: ${aSack.toFixed(2)}.` },
+      { label: 'Week-to-week stability (odd vs even weeks)', value: rSys.toFixed(2), unit: 'r', note: `SYS@2.5 per lineman, ${ids.length} linemen, within position. The same check on PFF pressure rate gives r = ${rPress.toFixed(2)}.` },
+      { label: 'Ranking vs pocket radius', value: rho.toFixed(2), unit: 'ρ', note: 'Spearman rank correlation of the leaderboard with a 4- or 6-yard pocket instead of 5. The ranking does not hinge on the radius.' },
+      { label: 'Dropbacks measured', value: '8,532', note: '2021 weeks 1–8. PFF\'s sack-charged blocker is also the top-SYS blocker on 51% of sacks (chance: 20%).' },
+    ],
+    charts: [
+      { id: 'by-outcome', title: 'Mean SYS@2.5 by what PFF charged the lineman with', type: 'bar', xLabel: 'PFF outcome on the snap', yLabel: 'Mean SYS@2.5 (yd²)', xTicks: outcomes,
+        series: [{ name: 'SYS@2.5', points: outcomes.map((o, i) => [i, +mean(o).toFixed(2)]) }], caption: 'Linemen surrender more pocket the worse the PFF outcome, without SYS ever seeing PFF\'s grades.' },
+      { id: 'stability', title: 'Odd weeks vs even weeks, per lineman', type: 'scatter', xLabel: 'SYS@2.5, odd weeks (yd², vs position avg)', yLabel: 'SYS@2.5, even weeks', 
+        series: ['T', 'G', 'C'].map(k => ({ name: { T: 'Tackles', G: 'Guards', C: 'Centers' }[k], points: ids.map((id, i) => [id, i]).filter(([id]) => posOf.get(id) === k).map(([, i]) => [+sO[i].toFixed(2), +sE[i].toFixed(2)]) })),
+        caption: `Each dot is a lineman with 30+ snaps in each half. r = ${rSys.toFixed(2)} for SYS vs ${rPress.toFixed(2)} for pressure rate.` },
+    ],
+  };
+  const e = validateValidation(v); if (e.length) { console.error(e); process.exit(1); }
+  writeFileSync(join(OUT, 'validation.json'), JSON.stringify(v, null, 1));
+  console.log(`validation: AUC ${aPress.toFixed(3)} (sack ${aSack.toFixed(3)}), stability r SYS ${rSys.toFixed(3)} vs pressure ${rPress.toFixed(3)} (n=${ids.length}), rho ${rho.toFixed(3)}, means ${outcomes.map(o => o + ' ' + mean(o).toFixed(2)).join(', ')}`);
 }

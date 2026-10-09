@@ -1,12 +1,459 @@
 {
-  "stub": true,
-  "headlines": [
-    { "label": "Dropback plays measured", "value": "8,532", "note": "2021 weeks 1–8, from Workstream A's pipeline (25 plays dropped: 24 with no snap event, 1 with no rushers)." },
-    { "label": "AUC: SYS vs PFF pressure allowed", "value": "TBD", "note": "Play by play: does SYS run higher on snaps where PFF charged the lineman with a sack, hit or hurry?" },
-    { "label": "Split-half stability (odd vs even weeks)", "value": "TBD", "note": "Correlation of each lineman's SYS across the two halves, against the same check on PFF pressure rate." }
-  ],
-  "charts": [
-    { "id": "by-outcome", "title": "Mean SYS@2.5 by PFF outcome", "type": "bar", "xLabel": "PFF outcome charged to the lineman", "yLabel": "Mean SYS@2.5 (yd²)", "xTicks": ["Clean", "Hurry", "Hit", "Sack"], "series": [{ "name": "SYS@2.5", "points": [] }], "caption": "Workstream B results go here." },
-    { "id": "stability", "title": "Split-half stability", "type": "scatter", "xLabel": "SYS@2.5, odd weeks", "yLabel": "SYS@2.5, even weeks", "series": [{ "name": "Linemen", "points": [] }], "caption": "Workstream B results go here." }
-  ]
+ "stub": false,
+ "headlines": [
+  {
+   "label": "AUC: SYS@2.5 vs PFF pressure allowed",
+   "value": "0.72",
+   "note": "Across 30,669 blocker-plays, SYS is higher when PFF charged the lineman with a hurry, hit or sack (0.5 = coin flip). Sacks alone: 0.75."
+  },
+  {
+   "label": "Week-to-week stability (odd vs even weeks)",
+   "value": "0.27",
+   "unit": "r",
+   "note": "SYS@2.5 per lineman, 92 linemen, within position. The same check on PFF pressure rate gives r = 0.26."
+  },
+  {
+   "label": "Ranking vs pocket radius",
+   "value": "0.99",
+   "unit": "ρ",
+   "note": "Spearman rank correlation of the leaderboard with a 4- or 6-yard pocket instead of 5. The ranking does not hinge on the radius."
+  },
+  {
+   "label": "Dropbacks measured",
+   "value": "8,532",
+   "note": "2021 weeks 1–8. PFF's sack-charged blocker is also the top-SYS blocker on 51% of sacks (chance: 20%)."
+  }
+ ],
+ "charts": [
+  {
+   "id": "by-outcome",
+   "title": "Mean SYS@2.5 by what PFF charged the lineman with",
+   "type": "bar",
+   "xLabel": "PFF outcome on the snap",
+   "yLabel": "Mean SYS@2.5 (yd²)",
+   "xTicks": [
+    "Clean",
+    "Hurry",
+    "Hit",
+    "Sack"
+   ],
+   "series": [
+    {
+     "name": "SYS@2.5",
+     "points": [
+      [
+       0,
+       3.6
+      ],
+      [
+       1,
+       8.04
+      ],
+      [
+       2,
+       8.61
+      ],
+      [
+       3,
+       9.51
+      ]
+     ]
+    }
+   ],
+   "caption": "Linemen surrender more pocket the worse the PFF outcome, without SYS ever seeing PFF's grades."
+  },
+  {
+   "id": "stability",
+   "title": "Odd weeks vs even weeks, per lineman",
+   "type": "scatter",
+   "xLabel": "SYS@2.5, odd weeks (yd², vs position avg)",
+   "yLabel": "SYS@2.5, even weeks",
+   "series": [
+    {
+     "name": "Tackles",
+     "points": [
+      [
+       0.56,
+       -0.59
+      ],
+      [
+       0.47,
+       -0.51
+      ],
+      [
+       -0.65,
+       -0.93
+      ],
+      [
+       0.49,
+       -3.89
+      ],
+      [
+       0.28,
+       -0.38
+      ],
+      [
+       -1.38,
+       -3.03
+      ],
+      [
+       1.67,
+       0.5
+      ],
+      [
+       0.97,
+       1.83
+      ],
+      [
+       -1.08,
+       -2.45
+      ],
+      [
+       -1.69,
+       -0.12
+      ],
+      [
+       -1.4,
+       0.26
+      ],
+      [
+       2.35,
+       -0.44
+      ],
+      [
+       -0.51,
+       2.55
+      ],
+      [
+       0.25,
+       2.99
+      ],
+      [
+       0.77,
+       1.8
+      ],
+      [
+       1.52,
+       0.77
+      ],
+      [
+       -1.01,
+       -0.32
+      ],
+      [
+       -0.93,
+       0.48
+      ],
+      [
+       -1.97,
+       0.26
+      ],
+      [
+       -0.07,
+       -0.51
+      ],
+      [
+       0.57,
+       -0.16
+      ],
+      [
+       -2.52,
+       1.35
+      ],
+      [
+       2.56,
+       -0.01
+      ],
+      [
+       2.12,
+       0.49
+      ],
+      [
+       -0.54,
+       0.91
+      ],
+      [
+       -2.3,
+       -0.21
+      ],
+      [
+       0.32,
+       -0.08
+      ],
+      [
+       0.77,
+       1.62
+      ],
+      [
+       0.81,
+       -0.22
+      ],
+      [
+       -0.44,
+       -2.67
+      ],
+      [
+       0.49,
+       1.33
+      ],
+      [
+       -1.06,
+       0.07
+      ],
+      [
+       1.6,
+       -0.15
+      ],
+      [
+       -1.3,
+       -1.24
+      ],
+      [
+       0.29,
+       0.69
+      ]
+     ]
+    },
+    {
+     "name": "Guards",
+     "points": [
+      [
+       0.63,
+       0.49
+      ],
+      [
+       0.13,
+       -0.05
+      ],
+      [
+       -0.15,
+       -0.29
+      ],
+      [
+       -0.19,
+       0.52
+      ],
+      [
+       0.09,
+       -0.22
+      ],
+      [
+       0.68,
+       0.59
+      ],
+      [
+       -0.32,
+       -0.09
+      ],
+      [
+       -0.28,
+       -0.41
+      ],
+      [
+       -0.68,
+       -0.49
+      ],
+      [
+       -0.5,
+       -0.04
+      ],
+      [
+       0.13,
+       0.67
+      ],
+      [
+       -0.12,
+       0.09
+      ],
+      [
+       -0.31,
+       -0.34
+      ],
+      [
+       -0.13,
+       -0.49
+      ],
+      [
+       0.1,
+       -0.68
+      ],
+      [
+       0.06,
+       -0.41
+      ],
+      [
+       -0.42,
+       -0.55
+      ],
+      [
+       1.55,
+       0.91
+      ],
+      [
+       -0.71,
+       -0.65
+      ],
+      [
+       -0.29,
+       0.42
+      ],
+      [
+       -0.03,
+       0.16
+      ],
+      [
+       -0.31,
+       -0.54
+      ],
+      [
+       -0.29,
+       -0.22
+      ],
+      [
+       -0.62,
+       -0.17
+      ],
+      [
+       0.34,
+       0.11
+      ],
+      [
+       -0.4,
+       -0.01
+      ],
+      [
+       -0.02,
+       -0.31
+      ],
+      [
+       -0.48,
+       0.38
+      ],
+      [
+       -0.28,
+       0.01
+      ],
+      [
+       0.18,
+       -0.68
+      ],
+      [
+       0.21,
+       -0.15
+      ],
+      [
+       -0.11,
+       -0.66
+      ],
+      [
+       0.32,
+       -0.3
+      ],
+      [
+       -0.32,
+       0.01
+      ],
+      [
+       2.54,
+       3.41
+      ],
+      [
+       0,
+       0
+      ]
+     ]
+    },
+    {
+     "name": "Centers",
+     "points": [
+      [
+       0.22,
+       0.05
+      ],
+      [
+       0.48,
+       -0.08
+      ],
+      [
+       0.36,
+       0.46
+      ],
+      [
+       -0.12,
+       0.01
+      ],
+      [
+       0.04,
+       -0.03
+      ],
+      [
+       -0.11,
+       -0.11
+      ],
+      [
+       -0.14,
+       0.02
+      ],
+      [
+       -0.09,
+       0.31
+      ],
+      [
+       -0.34,
+       0.13
+      ],
+      [
+       0.63,
+       0.13
+      ],
+      [
+       -0.44,
+       -0.55
+      ],
+      [
+       0.01,
+       0.42
+      ],
+      [
+       -0.19,
+       0.15
+      ],
+      [
+       -0.48,
+       -0.27
+      ],
+      [
+       -0.08,
+       -0.12
+      ],
+      [
+       -0.18,
+       -0.22
+      ],
+      [
+       -0.36,
+       -0.18
+      ],
+      [
+       0.26,
+       -0.11
+      ],
+      [
+       0.13,
+       0.04
+      ],
+      [
+       0.05,
+       0.13
+      ],
+      [
+       0.34,
+       -0.18
+      ]
+     ]
+    }
+   ],
+   "caption": "Each dot is a lineman with 30+ snaps in each half. r = 0.27 for SYS vs 0.26 for pressure rate."
+  }
+ ]
 }
